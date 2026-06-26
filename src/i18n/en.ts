@@ -54,6 +54,19 @@ const en = {
     stateUnknown: 'Cannot yet evalutate conditions because state for %s is unknown', // accessory id
   },
 
+  computed: {
+    badType: '%s has unsupported computed temperature type %s. Must be DELTA', // accessory name, type
+    missingField: '%s computed temperature config is missing %s', // accessory name, field path
+    nonNumericConfig: '%s computed temperature config expects a numeric value for %s', // accessory name, field path
+    nonNumericInput: '%s computed temperature source %s produced non-numeric value %s', // accessory name, source accessory id, value
+    nonTemperatureSensor: '%s has computed config but type %s is not TemperatureSensor', // accessory name, type
+    selfReference: '%s computed temperature config cannot reference its own CurrentTemperature in %s', // accessory name, field path
+    unsupportedCharacteristic: '%s computed temperature source %s uses unsupported characteristic %s. '
+      + 'Must be one of: %s', // accessory name, field path, characteristic, list
+    unsupportedSource: '%s computed temperature source %s must use source %s. '
+      + 'Direct Homebridge sources need an event-driven adapter first.', // accessory name, field path, source
+  },
+
   config: {
 
     accessory: 'Accessory',
@@ -81,6 +94,7 @@ const en = {
       carbonDioxideSensor:'Carbon Dioxide',
       carbonMonoxideSensor: 'Carbon Monoxide',
       celsius: '°C',
+      currentTemperature: 'Current Temperature',
       closed: 'Closed',
       contactSensor: 'Contact',
       cool: 'Cool',
@@ -90,7 +104,9 @@ const en = {
       dawn: 'Dawn',
       day: 'Day',
       dehumidifier: 'Dehumidifier',
+      delta: 'Delta',
       door: 'Door',
+      dummySource: 'Dummy accessory',
       dusk: 'Dusk',
       fahrenheit: '°F',
       faucet: 'Faucet',
@@ -100,6 +116,7 @@ const en = {
       goldenHour: 'Golden Hour',
       heat: 'Heat',
       homekit: 'HomeKit (Default)',
+      homebridgeSource: 'Homebridge accessory',
       hour: 'Hour',
       hourly: 'Hourly',
       hours: 'Hours',
@@ -143,6 +160,7 @@ const en = {
       sunrise: 'Sunrise',
       sunset: 'Sunset',
       switch: 'Switch',
+      targetTemperature: 'Target Temperature',
       temperatureSensor: 'Temperature Sensor',
       thermostat: 'Thermostat',
       timeout: 'After Delay',
@@ -168,6 +186,7 @@ const en = {
 
     title: {
       accessory: 'Accessory',
+      accessoryId: 'Accessory ID',
       accessoryState: 'State',
       api: 'API',
       autoReset: 'Auto-Reset',
@@ -181,6 +200,11 @@ const en = {
       commandSync: 'Sync Command',
       commandTemperature: 'Temperature Changed Command',
       commandUnlock: 'Unlock Command',
+      characteristic: 'Characteristic',
+      clampMaximum: 'Clamp Maximum',
+      clampMinimum: 'Clamp Minimum',
+      computed: 'Computed Temperature',
+      computedType: 'Computed Type',
       condition: 'Condition',
       conditions: 'Trigger Conditions',
       cron: 'Cron',
@@ -213,6 +237,7 @@ const en = {
       pingieID: 'Device or Group ID',
       pingieToken: 'Token',
       pingInterval: 'Interval',
+      precision: 'Precision',
       protocol: 'Protocol',
       pushoverID: 'App Token (optional)',
       pushoverToken: 'User Key',
@@ -226,7 +251,10 @@ const en = {
       schedule: 'Schedule',
       sensor: 'Attach Sensor',
       sensorBehavior: 'Sensor Behavior',
+      serviceSubtype: 'Service Subtype',
+      serviceType: 'Service Type',
       simulateOpenClose: 'Simulate Open/Close',
+      source: 'Source',
       syncSchedule: 'Sync Schedule',
       temperatureUnits: 'Temperature Units',
       time: 'Time',

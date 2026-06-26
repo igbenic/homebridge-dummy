@@ -2,6 +2,7 @@ import { DummyAccessory, DummyAccessoryDependency, GetHomeKit, GetMatter } from 
 import { createDummyAccessory } from './helpers.js';
 
 import { ConditionManager } from '../model/conditions.js';
+import { CharacteristicEventBus } from '../model/characteristic-events.js';
 import { Protocol } from '../model/enums.js';
 import { History } from '../model/history.js';
 import { DummyConfig, GroupConfig } from '../model/types.js';
@@ -15,6 +16,7 @@ export type GroupAccessoryDependency = {
     getHomeKit: GetHomeKit,
     getMatter: GetMatter,
     conditionManager: ConditionManager,
+    characteristicEventBus: CharacteristicEventBus,
     log: Log,
     history: History
 }

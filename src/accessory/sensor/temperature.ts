@@ -4,11 +4,19 @@ import { DummyAccessory, DummyAccessoryDependency } from '../base.js';
 
 import { strings } from '../../i18n/i18n.js';
 
+import {
+  computeTemperatureDelta,
+  computedRefKey,
+  DummyCharacteristicValueSource,
+  SUPPORTED_COMPUTED_CHARACTERISTICS,
+  toFiniteNumber,
+} from '../../model/computed-temperature.js';
 import { TemperatureUnits } from '../../model/enums.js';
 import { HistoryType } from '../../model/history.js';
 import { HKCharacteristicKey, HomeKitType } from '../../model/homekit.js';
-import { TemperatureSensorConfig } from '../../model/types.js';
+import { ComputedCharacteristicRef, ComputedTemperatureConfig, TemperatureSensorConfig } from '../../model/types.js';
 import { Range, Webhook } from '../../model/webhook.js';
+import { Storage } from '../../tools/storage.js';
 import { fromCelsius, toCelsius } from '../../tools/temperature.js';
 import { isValid, printableValues } from '../../tools/validation.js';
 
@@ -18,6 +26,9 @@ const MAX_TEMP = 100;
 export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensorConfig> {
 
   private temperature: CharacteristicValue;
+  private readonly computedSourceValues = new Map<string, number>();
+  private readonly unsubscribeComputed: (() => void)[] = [];
+  private activeComputedConfig?: ComputedTemperatureConfig;
 
   constructor(dependency: DummyAccessoryDependency<TemperatureSensorConfig>) {
     super(dependency);
@@ -29,7 +40,16 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
     this.service.getCharacteristic(this.homekit.Characteristic.CurrentTemperature)
       .onGet(this.getTemperature.bind(this));
 
-    this.temperature = (this.isStateful ? this.getProperty(HKCharacteristicKey.CurrentTemperature) : 0) ?? 0;
+    const persistedTemperature = this.isStateful ? this.getProperty(HKCharacteristicKey.CurrentTemperature) : undefined;
+    this.temperature = persistedTemperature ?? 0;
+
+    if (this.config.computed === undefined) {
+      if (persistedTemperature !== undefined) {
+        this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, this.temperature);
+      }
+    } else {
+      this.setupComputed();
+    }
   }
 
   override getHomeKitType(): HomeKitType {
@@ -37,6 +57,9 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
   }
 
   override get webhooks(): Webhook[] {
+    if (this.config.computed !== undefined) {
+      return [];
+    }
 
     return [
       new Webhook(this, HKCharacteristicKey.CurrentTemperature,
@@ -60,16 +83,24 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
   }
 
   private async setTemperature(value: CharacteristicValue, syncOnly: boolean = false) {
+    await this.updateTemperature(value, !syncOnly);
+  }
 
-    if (this.temperature !== value) {
+  private async setComputedTemperature(value: CharacteristicValue) {
+    await this.updateTemperature(value, false);
+  }
+
+  private async updateTemperature(value: CharacteristicValue, executeCommand: boolean) {
+
+    const changed = this.temperature !== value;
+
+    if (changed) {
       this.logTemperature(value);
 
       this.setProperty(HKCharacteristicKey.CurrentTemperature, value);
 
-      if (!syncOnly) {
-        if (this.config.commandTemperature) {
-          this.executeCommand(this.config.commandTemperature);
-        }
+      if (executeCommand && this.config.commandTemperature) {
+        this.executeCommand(this.config.commandTemperature);
       }
 
       this.recordHistory(HistoryType.WEATHER, { temp: value as number } );
@@ -78,6 +109,10 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
     this.temperature = value;
 
     this.service.updateCharacteristic(this.Characteristic.CurrentTemperature, this.temperature);
+
+    if (changed) {
+      this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, value);
+    }
   }
 
   override async trigger(): Promise<void> {
@@ -96,5 +131,142 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
 
   protected logTemperature(value: CharacteristicValue) {
     this.logIfDesired(this.temperatureLogTemplateForCV(value));
+  }
+
+  private setupComputed() {
+    const computedConfig = this.validateComputedConfig();
+    if (computedConfig === undefined) {
+      return;
+    }
+
+    this.activeComputedConfig = computedConfig;
+
+    for (const ref of [computedConfig.minuend, computedConfig.subtrahend]) {
+      const source = new DummyCharacteristicValueSource(ref, this.characteristicEventBus, Storage.get);
+      const initial = source.read();
+      const key = computedRefKey(ref);
+
+      if (initial !== undefined) {
+        this.computedSourceValues.set(key, initial);
+      }
+
+      const unsubscribe = source.subscribe(
+        value => {
+          this.computedSourceValues.set(key, value);
+          this.recomputeComputedTemperature();
+        },
+        value => {
+          this.log.warning(strings.computed.nonNumericInput, this.displayName, ref.accessoryId, `'${String(value)}'`);
+        },
+      );
+
+      this.unsubscribeComputed.push(unsubscribe);
+    }
+
+    this.recomputeComputedTemperature();
+  }
+
+  private recomputeComputedTemperature() {
+    if (this.activeComputedConfig === undefined) {
+      return;
+    }
+
+    const value = computeTemperatureDelta(this.activeComputedConfig, this.computedSourceValues);
+    if (value === undefined) {
+      return;
+    }
+
+    this.setComputedTemperature(value);
+  }
+
+  private validateComputedConfig(): ComputedTemperatureConfig | undefined {
+    const computed = this.config.computed as Partial<ComputedTemperatureConfig> | undefined;
+    if (computed === undefined) {
+      return undefined;
+    }
+
+    if (computed.type !== 'DELTA') {
+      this.log.error(strings.computed.badType, this.displayName, `'${computed.type}'`);
+      return undefined;
+    }
+
+    if (!this.validateComputedRef('minuend', computed.minuend)) {
+      return undefined;
+    }
+
+    if (!this.validateComputedRef('subtrahend', computed.subtrahend)) {
+      return undefined;
+    }
+
+    if (computed.precision !== undefined && toFiniteNumber(computed.precision) === undefined) {
+      this.log.error(strings.computed.nonNumericConfig, this.displayName, '`computed.precision`');
+      return undefined;
+    }
+
+    if (computed.offset !== undefined && toFiniteNumber(computed.offset) === undefined) {
+      this.log.error(strings.computed.nonNumericConfig, this.displayName, '`computed.offset`');
+      return undefined;
+    }
+
+    if (computed.clampMinimum !== undefined && toFiniteNumber(computed.clampMinimum) === undefined) {
+      this.log.error(strings.computed.nonNumericConfig, this.displayName, '`computed.clampMinimum`');
+      return undefined;
+    }
+
+    if (computed.clampMaximum !== undefined && toFiniteNumber(computed.clampMaximum) === undefined) {
+      this.log.error(strings.computed.nonNumericConfig, this.displayName, '`computed.clampMaximum`');
+      return undefined;
+    }
+
+    return computed as ComputedTemperatureConfig;
+  }
+
+  private validateComputedRef(name: 'minuend' | 'subtrahend', ref: Partial<ComputedCharacteristicRef> | undefined): ref is ComputedCharacteristicRef {
+    const path = `computed.${name}`;
+
+    if (ref === undefined) {
+      this.log.error(strings.computed.missingField, this.displayName, this.configPath(path));
+      return false;
+    }
+
+    if (typeof ref.accessoryId !== 'string' || ref.accessoryId.length === 0) {
+      this.log.error(strings.computed.missingField, this.displayName, this.configPath(`${path}.accessoryId`));
+      return false;
+    }
+
+    if (ref.source !== 'dummy') {
+      this.log.error(strings.computed.unsupportedSource, this.displayName, this.configPath(`${path}.source`), '\'dummy\'');
+      return false;
+    }
+
+    if (!SUPPORTED_COMPUTED_CHARACTERISTICS.includes(ref.characteristic as HKCharacteristicKey)) {
+      this.log.error(
+        strings.computed.unsupportedCharacteristic,
+        this.displayName,
+        this.configPath(`${path}.characteristic`),
+        `'${ref.characteristic}'`,
+        SUPPORTED_COMPUTED_CHARACTERISTICS.map(characteristic => `'${characteristic}'`).join(', '),
+      );
+      return false;
+    }
+
+    if (ref.accessoryId === this.identifier && ref.characteristic === HKCharacteristicKey.CurrentTemperature) {
+      this.log.error(strings.computed.selfReference, this.displayName, this.configPath(path));
+      return false;
+    }
+
+    return true;
+  }
+
+  private configPath(path: string): string {
+    return '`' + path + '`';
+  }
+
+  override teardown() {
+    this.unsubscribeComputed.forEach(unsubscribe => {
+      unsubscribe();
+    });
+    this.unsubscribeComputed.length = 0;
+    super.teardown();
   }
 }

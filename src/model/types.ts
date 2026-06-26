@@ -9,7 +9,7 @@ import {
   AccessoryState, ConditionOperator, FadeOutType, HumidifierType, LockState, NotificationAPI, OnState, OperandType, PingAvailability,
   Position, Protocol, ScheduleType, SensorBehavior, ThermostatState, TemperatureUnits, TimePeriod, TimeUnits, ValveType,
 } from './enums.js';
-import { HomeKitType, SensorType } from './homekit.js';
+import { HKCharacteristicKey, HomeKitType, SensorType } from './homekit.js';
 
 export type LegacyAccessoryConfig = AccessoryConfig & {
   name: string,
@@ -71,9 +71,28 @@ export type HumiditySensorConfig = DummyConfig & {
   commandHumidity?: string,
 }
 
+export type ComputedCharacteristicRef = Assertable & {
+  source: 'dummy' | 'homebridge',
+  accessoryId: string,
+  serviceType?: string,
+  serviceSubtype?: string,
+  characteristic: HKCharacteristicKey,
+}
+
+export type ComputedTemperatureConfig = Assertable & {
+  type: 'DELTA',
+  minuend: ComputedCharacteristicRef,
+  subtrahend: ComputedCharacteristicRef,
+  precision?: number,
+  offset?: number,
+  clampMinimum?: number,
+  clampMaximum?: number,
+}
+
 export type TemperatureSensorConfig = DummyConfig & {
   temperatureUnits?: TemperatureUnits
   commandTemperature?: string,
+  computed?: ComputedTemperatureConfig,
 }
 
 export type Notification = Assertable & {

@@ -9,8 +9,10 @@ import { GroupAccessory, GroupAccessoryDependency } from '../accessory/group.js'
 
 import { setLanguage, strings } from '../i18n/i18n.js';
 
+import { CharacteristicEventBus } from '../model/characteristic-events.js';
 import { ConditionManager } from '../model/conditions.js';
 import { Protocol } from '../model/enums.js';
+import { HomeKitType } from '../model/homekit.js';
 import { History } from '../model/history.js';
 import { DummyConfig, DummyPlatformConfig, GroupConfig, HomeKitAccessory } from '../model/types.js';
 import { WebhookManager } from '../model/webhook.js';
@@ -30,6 +32,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
 
   private readonly webhookManager: WebhookManager;
   private readonly conditionManager: ConditionManager;
+  private readonly characteristicEventBus = new CharacteristicEventBus();
 
   constructor(
     logger: Logger,
@@ -99,6 +102,10 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
         accessoryConfig.protocol = Protocol.HomeKit;
       }
 
+      if (this.hasUnsupportedComputedConfig(accessoryConfig)) {
+        continue;
+      }
+
       if (accessoryConfig.protocol === Protocol.HomeKit) {
 
         initEveCharacteristics(this.api);
@@ -125,6 +132,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
           getMatter: () => undefined,
           config: accessoryConfig,
           conditionManager: this.conditionManager,
+          characteristicEventBus: this.characteristicEventBus,
           log: this.log,
           history: History.instance(this.api, this.log),
           isGrouped: false,
@@ -164,6 +172,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
           getMatter: () => this.api.matter,
           config: accessoryConfig,
           conditionManager: this.conditionManager,
+          characteristicEventBus: this.characteristicEventBus,
           log: this.log,
           history: undefined,
           isGrouped: false,
@@ -203,6 +212,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
         getHomeKit: () => ({ Service: this.api.hap.Service, Characteristic: this.api.hap.Characteristic, accessory: homekitAccessory }),
         getMatter: () => undefined,
         conditionManager: this.conditionManager,
+        characteristicEventBus: this.characteristicEventBus,
         log: this.log,
         history: History.instance(this.api, this.log),
       };
@@ -226,6 +236,19 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
     this.webhookManager.startServer();
 
     this.log.always(strings.startup.setupComplete);
+  }
+
+  private hasUnsupportedComputedConfig(accessoryConfig: DummyConfig): boolean {
+    if (!('computed' in accessoryConfig) || accessoryConfig.computed === undefined) {
+      return false;
+    }
+
+    if (accessoryConfig.type === HomeKitType.TemperatureSensor) {
+      return false;
+    }
+
+    this.log.error(strings.computed.nonTemperatureSensor, accessoryConfig.name, accessoryConfig.type);
+    return true;
   }
 
   private createHomeKitAccessory(id: string, name: string): HomeKitAccessory {

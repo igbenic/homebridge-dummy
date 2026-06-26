@@ -32,6 +32,35 @@ Features include scheduling to trigger at a specific interval or times, resettin
 
 Visit the [Wiki](https://github.com/mpatfield/homebridge-dummy/wiki) to learn more about available features.
 
+## Computed Temperature Delta
+
+Temperature sensors can optionally expose a computed delta between two numeric dummy accessory characteristics. This is useful when automations should react to the difference between an actual room temperature and a user-selected target temperature instead of fixed absolute temperatures.
+
+The computed value is event-driven. It updates when either source characteristic changes and does not poll source accessories on a timer. The current implementation supports dummy-owned `CurrentTemperature` and `TargetTemperature` sources. Direct cross-plugin Homebridge sources are rejected until an event-driven adapter is available.
+
+```json
+{
+  "id": "ac_temp_delta",
+  "name": "AC Temperature Delta",
+  "type": "TemperatureSensor",
+  "computed": {
+    "type": "DELTA",
+    "minuend": {
+      "source": "dummy",
+      "accessoryId": "ac_room_temp_input",
+      "characteristic": "CurrentTemperature"
+    },
+    "subtrahend": {
+      "source": "dummy",
+      "accessoryId": "wanted_temp",
+      "characteristic": "TargetTemperature"
+    },
+    "precision": 1
+  },
+  "resetOnRestart": false
+}
+```
+
 ## Credits
 
 [@jotzet79](https://github.com/sponsors/jotzet79) for German translations

@@ -38,7 +38,8 @@
     "i18n:missing": "node --import tsx ./scripts/i18n-missing.ts",
     "lint": "eslint . --fix --max-warnings=0",
     "postinstall": "patch-package",
-    "prepublishOnly": "npm run lint && npm run build"
+    "prepublishOnly": "npm run lint && npm run build",
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "keywords": [
     "homebridge",

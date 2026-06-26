@@ -117,6 +117,7 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
       this.service.updateCharacteristic(this.Characteristic.CurrentTemperature, this.currentTemperature);
       this.service.updateCharacteristic(this.Characteristic.TargetTemperature, this.targetTemperature);
 
+      this.publishInitialTemperatureCharacteristics();
       return;
     }
 
@@ -139,6 +140,8 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
     if (targetTemperature !== undefined) {
       await this.setTargetTemperature(targetTemperature);
     }
+
+    this.publishInitialTemperatureCharacteristics();
   }
 
   override getHomeKitType(): HomeKitType {
@@ -316,7 +319,9 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
 
   private async setCurrentTemperature(value: CharacteristicValue) {
 
-    if (this._currentTemperature !== value) {
+    const changed = this._currentTemperature !== value;
+
+    if (changed) {
       this.logCurrentTemperature(value);
       this.setProperty(HKCharacteristicKey.CurrentTemperature, value);
       this.recordHistory(HistoryType.WEATHER, { temp: value as number } );
@@ -325,11 +330,18 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
     this._currentTemperature = value;
 
     this.service.updateCharacteristic(this.Characteristic.CurrentTemperature, this.currentTemperature);
+
+    if (changed) {
+      this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, value);
+    }
   }
 
   private async setTargetTemperature(value: CharacteristicValue, syncOnly: boolean = false) {
 
-    if (this.targetTemperature !== value) {
+    const previousCurrentTemperature = this.currentTemperature;
+    const changed = this.targetTemperature !== value;
+
+    if (changed) {
       this.logTargetTemperature(value);
 
       this.setProperty(HKCharacteristicKey.TargetTemperature, value);
@@ -345,6 +357,14 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
 
     this.service.updateCharacteristic(this.Characteristic.TargetTemperature, this.targetTemperature);
     this.service.updateCharacteristic(this.Characteristic.CurrentTemperature, this.currentTemperature);
+
+    if (changed) {
+      this.publishCharacteristic(HKCharacteristicKey.TargetTemperature, value);
+    }
+
+    if (previousCurrentTemperature !== this.currentTemperature) {
+      this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, this.currentTemperature);
+    }
   }
 
   override async trigger(): Promise<void> {
@@ -385,5 +405,10 @@ export class ThermostatAccessory extends DummyAccessory<ThermostatConfig> {
 
   protected logTargetTemperature(value: CharacteristicValue) {
     this.logIfDesired(this.temperatureLogTemplateForCV(value, strings.thermostat.targetF, strings.thermostat.targetC));
+  }
+
+  private publishInitialTemperatureCharacteristics() {
+    this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, this.currentTemperature);
+    this.publishCharacteristic(HKCharacteristicKey.TargetTemperature, this.targetTemperature);
   }
 }

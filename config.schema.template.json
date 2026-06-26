@@ -30,6 +30,67 @@
           }
         }
       },
+      "computedCharacteristicRef": {
+        "type": "object",
+        "required": ["source", "accessoryId", "characteristic"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "${config.title.source}",
+            "enum": ["dummy", "homebridge"],
+            "enumNames": ["${config.enumNames.dummySource}", "${config.enumNames.homebridgeSource}"]
+          },
+          "accessoryId": {
+            "type": "string",
+            "title": "${config.title.accessoryId}"
+          },
+          "serviceType": {
+            "type": "string",
+            "title": "${config.title.serviceType}"
+          },
+          "serviceSubtype": {
+            "type": "string",
+            "title": "${config.title.serviceSubtype}"
+          },
+          "characteristic": {
+            "type": "string",
+            "title": "${config.title.characteristic}",
+            "enum": ["CurrentTemperature", "TargetTemperature"],
+            "enumNames": ["${config.enumNames.currentTemperature}", "${config.enumNames.targetTemperature}"]
+          }
+        }
+      },
+      "computedTemperature": {
+        "type": "object",
+        "required": ["type", "minuend", "subtrahend"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "${config.title.computedType}",
+            "enum": ["DELTA"],
+            "enumNames": ["${config.enumNames.delta}"]
+          },
+          "minuend": { "$ref": "#/definitions/computedCharacteristicRef" },
+          "subtrahend": { "$ref": "#/definitions/computedCharacteristicRef" },
+          "precision": {
+            "type": "integer",
+            "title": "${config.title.precision}",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "number",
+            "title": "${config.title.offset}"
+          },
+          "clampMinimum": {
+            "type": "number",
+            "title": "${config.title.clampMinimum}"
+          },
+          "clampMaximum": {
+            "type": "number",
+            "title": "${config.title.clampMaximum}"
+          }
+        }
+      },
       "notification": {
         "type": "object",
         "properties": {
@@ -557,6 +618,7 @@
               "enum": ["C", "F"],
               "enumNames": ["${config.enumNames.celsius}", "${config.enumNames.fahrenheit}"]
             },
+            "computed": { "$ref": "#/definitions/computedTemperature" },
             "isDimmer": {
               "type": "boolean",
               "title": "${config.title.isDimmer}"
@@ -674,6 +736,18 @@
           "allOf": [
             {
               "if": {
+                "required": ["computed"]
+              },
+              "then": {
+                "properties": {
+                  "type": {
+                    "const": "TemperatureSensor"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
                 "properties": {
                   "commandSync": {
                   }
@@ -783,6 +857,97 @@
                       "condition": {
                         "functionBody": "return model.accessories?.[arguments[1]]?.sensor.type !== undefined;"
                       }
+                    }
+                  ]
+                },
+                {
+                  "type": "fieldset",
+                  "title": "${config.title.computed}",
+                  "expandable": true,
+                  "condition": {
+                    "functionBody": "return ['TemperatureSensor'].includes(model.accessories?.[arguments[1]]?.type);"
+                  },
+                  "items": [
+                    {
+                      "key": "accessories[].computed.type"
+                    },
+                    {
+                      "type": "div",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "notitle": true,
+                      "items": [
+                        {
+                          "key": "accessories[].computed.minuend.source",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.minuend.accessoryId",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.minuend.characteristic",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.minuend.serviceType",
+                          "flex": "0 0 25%"
+                        }
+                      ]
+                    },
+                    {
+                      "key": "accessories[].computed.minuend.serviceSubtype"
+                    },
+                    {
+                      "type": "div",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "notitle": true,
+                      "items": [
+                        {
+                          "key": "accessories[].computed.subtrahend.source",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.subtrahend.accessoryId",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.subtrahend.characteristic",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.subtrahend.serviceType",
+                          "flex": "0 0 25%"
+                        }
+                      ]
+                    },
+                    {
+                      "key": "accessories[].computed.subtrahend.serviceSubtype"
+                    },
+                    {
+                      "type": "div",
+                      "displayFlex": true,
+                      "flex-direction": "row",
+                      "notitle": true,
+                      "items": [
+                        {
+                          "key": "accessories[].computed.precision",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.offset",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.clampMinimum",
+                          "flex": "0 0 25%"
+                        },
+                        {
+                          "key": "accessories[].computed.clampMaximum",
+                          "flex": "0 0 25%"
+                        }
+                      ]
                     }
                   ]
                 },

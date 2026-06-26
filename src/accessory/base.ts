@@ -10,7 +10,8 @@ import { strings } from '../i18n/i18n.js';
 
 import { ConditionManager } from '../model/conditions.js';
 import { AccessoryState, Protocol, TimeUnits } from '../model/enums.js';
-import { CharacteristicKey, HomeKitType } from '../model/homekit.js';
+import { CharacteristicEventBus, CharacteristicEventValue } from '../model/characteristic-events.js';
+import { CharacteristicKey, HKCharacteristicKey, HomeKitType } from '../model/homekit.js';
 import { History, HistoryEntry, HistoryType } from '../model/history.js';
 import { MATTER_SERIAL_MAX_LEN, MatterClusterKey, MatterType, MatterValue, MatterValueKey } from '../model/matter.js';
 import { NotificationManager, NotificationType } from '../model/notification.js';
@@ -36,6 +37,7 @@ export type DummyAccessoryDependency<C extends DummyConfig> = {
   getMatter: GetMatter,
   config: C,
   conditionManager: ConditionManager,
+  characteristicEventBus: CharacteristicEventBus,
   log: Log,
   history?: History
   isGrouped: boolean,
@@ -306,6 +308,10 @@ export abstract class DummyAccessory<C extends DummyConfig> implements MatterAcc
     return this.homekit.Characteristic;
   }
 
+  protected get characteristicEventBus(): CharacteristicEventBus {
+    return this.dependency.characteristicEventBus;
+  }
+
   protected get isStateful(): boolean {
     return this.config.resetOnRestart !== true;
   }
@@ -316,6 +322,14 @@ export abstract class DummyAccessory<C extends DummyConfig> implements MatterAcc
 
   public setProperty(key: CharacteristicKey, value: CharacteristicValue) {
     Storage.set(this.identifier, key, value);
+  }
+
+  protected publishCharacteristic(characteristic: HKCharacteristicKey, value: CharacteristicEventValue) {
+    this.dependency.characteristicEventBus.publish({
+      accessoryId: this.identifier,
+      characteristic,
+      value,
+    });
   }
 
   protected setAutoResetTimeout(rawTime: number, units: TimeUnits) {
