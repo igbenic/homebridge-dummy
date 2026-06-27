@@ -57,6 +57,7 @@ const en = {
   computed: {
     badType: '%s has unsupported computed temperature type %s. Must be DELTA', // accessory name, type
     missingField: '%s computed temperature config is missing %s', // accessory name, field path
+    nonBooleanConfig: '%s computed temperature config expects a boolean value for %s', // accessory name, field path
     nonNumericConfig: '%s computed temperature config expects a numeric value for %s', // accessory name, field path
     nonNumericInput: '%s computed temperature source %s produced non-numeric value %s', // accessory name, source accessory id, value
     nonTemperatureSensor: '%s has computed config but type %s is not TemperatureSensor', // accessory name, type
@@ -192,6 +193,7 @@ const en = {
       accessoryId: 'Accessory ID',
       accessoryState: 'State',
       api: 'API',
+      absolute: 'Absolute Value',
       autoReset: 'Auto-Reset',
       commandClose: 'Close Command',
       commandHumidity: 'Humidity Changed Command',

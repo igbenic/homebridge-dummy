@@ -78,6 +78,10 @@
             "title": "${config.title.precision}",
             "minimum": 0
           },
+          "absolute": {
+            "type": "boolean",
+            "title": "${config.title.absolute}"
+          },
           "offset": {
             "type": "number",
             "title": "${config.title.offset}"
@@ -934,19 +938,23 @@
                       "items": [
                         {
                           "key": "accessories[].computed.precision",
-                          "flex": "0 0 25%"
+                          "flex": "0 0 20%"
+                        },
+                        {
+                          "key": "accessories[].computed.absolute",
+                          "flex": "0 0 20%"
                         },
                         {
                           "key": "accessories[].computed.offset",
-                          "flex": "0 0 25%"
+                          "flex": "0 0 20%"
                         },
                         {
                           "key": "accessories[].computed.clampMinimum",
-                          "flex": "0 0 25%"
+                          "flex": "0 0 20%"
                         },
                         {
                           "key": "accessories[].computed.clampMaximum",
-                          "flex": "0 0 25%"
+                          "flex": "0 0 20%"
                         }
                       ]
                     }

@@ -81,6 +81,23 @@ test('computeTemperatureDelta supports half-degree precision steps', () => {
   assert.equal(computeTemperatureDelta(config, values), 3.5);
 });
 
+test('computeTemperatureDelta can expose absolute delta magnitude', () => {
+  const config: ComputedTemperatureConfig = {
+    type: 'DELTA',
+    minuend: actualRef,
+    subtrahend: targetRef,
+    precision: 0.5,
+    absolute: true,
+  };
+
+  const values = new Map<string, number>([
+    [computedRefKey(actualRef), 24.2],
+    [computedRefKey(targetRef), 26],
+  ]);
+
+  assert.equal(computeTemperatureDelta(config, values), 2);
+});
+
 test('source-only computed defaults are not treated as configured computed temperature', () => {
   assert.equal(isComputedTemperatureConfigured({
     minuend: { source: 'dummy' },

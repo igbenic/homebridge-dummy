@@ -37,6 +37,7 @@ export function isComputedTemperatureConfigured(config: Partial<ComputedTemperat
     || isComputedRefConfigured(config.minuend)
     || isComputedRefConfigured(config.subtrahend)
     || config.precision !== undefined
+    || config.absolute !== undefined
     || config.offset !== undefined
     || config.clampMinimum !== undefined
     || config.clampMaximum !== undefined;
@@ -104,6 +105,9 @@ export function computeTemperatureDelta(config: ComputedTemperatureConfig, sourc
   const precision = config.precision ?? 1;
 
   let value = minuend - subtrahend + (config.offset ?? 0);
+  if (config.absolute === true) {
+    value = Math.abs(value);
+  }
   value = roundComputedTemperature(value, precision);
 
   if (config.clampMinimum !== undefined) {

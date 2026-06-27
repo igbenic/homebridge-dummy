@@ -84,6 +84,7 @@ export type ComputedTemperatureConfig = Assertable & {
   minuend: ComputedCharacteristicRef,
   subtrahend: ComputedCharacteristicRef,
   precision?: number,
+  absolute?: boolean,
   offset?: number,
   clampMinimum?: number,
   clampMaximum?: number,

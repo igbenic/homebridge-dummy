@@ -218,6 +218,11 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
       return undefined;
     }
 
+    if (computed.absolute !== undefined && typeof computed.absolute !== 'boolean') {
+      this.log.error(strings.computed.nonBooleanConfig, this.displayName, '`computed.absolute`');
+      return undefined;
+    }
+
     if (computed.offset !== undefined && toFiniteNumber(computed.offset) === undefined) {
       this.log.error(strings.computed.nonNumericConfig, this.displayName, '`computed.offset`');
       return undefined;

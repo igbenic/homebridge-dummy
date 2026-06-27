@@ -132,3 +132,12 @@ test('computed temperature schema allows half-degree precision', () => {
     'number',
   );
 });
+
+test('computed temperature schema exposes absolute delta option', () => {
+  const schema = JSON.parse(readFileSync('config.schema.json', 'utf8'));
+
+  assert.equal(
+    schema.schema.definitions.computedTemperature.properties.absolute.type,
+    'boolean',
+  );
+});
