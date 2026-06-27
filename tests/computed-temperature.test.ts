@@ -2,8 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { CharacteristicEventBus } from '../src/model/characteristic-events.js';
-import { computeTemperatureDelta, computedRefKey, DummyCharacteristicValueSource } from '../src/model/computed-temperature.js';
-import { HKCharacteristicKey } from '../src/model/homekit.js';
+import {
+  computeTemperatureDelta,
+  computedRefKey,
+  DummyCharacteristicValueSource,
+  isComputedTemperatureConfigured,
+  normalizeComputedRefSource,
+} from '../src/model/computed-temperature.js';
+import { HKCharacteristicKey, HomeKitType } from '../src/model/homekit.js';
 import { ComputedCharacteristicRef, ComputedTemperatureConfig } from '../src/model/types.js';
 
 const actualRef: ComputedCharacteristicRef = {
@@ -57,6 +63,47 @@ test('computeTemperatureDelta applies delta formula, precision, offset, and clam
   assert.equal(computeTemperatureDelta(config, values), -0.3);
   values.delete(computedRefKey(targetRef));
   assert.equal(computeTemperatureDelta(config, values), undefined);
+});
+
+test('computeTemperatureDelta supports half-degree precision steps', () => {
+  const config: ComputedTemperatureConfig = {
+    type: 'DELTA',
+    minuend: actualRef,
+    subtrahend: targetRef,
+    precision: 0.5,
+  };
+
+  const values = new Map<string, number>([
+    [computedRefKey(actualRef), 29.2],
+    [computedRefKey(targetRef), 25.5],
+  ]);
+
+  assert.equal(computeTemperatureDelta(config, values), 3.5);
+});
+
+test('source-only computed defaults are not treated as configured computed temperature', () => {
+  assert.equal(isComputedTemperatureConfigured({
+    minuend: { source: 'dummy' },
+    subtrahend: { source: 'dummy' },
+  }), false);
+
+  assert.equal(isComputedTemperatureConfigured({
+    type: 'DELTA',
+    minuend: { source: 'dummy' },
+    subtrahend: { source: 'dummy' },
+  }), true);
+});
+
+test('missing computed source is inferred from service metadata', () => {
+  const ref: Partial<ComputedCharacteristicRef> = {
+    accessoryId: 'homebridge-accessory',
+    serviceType: HomeKitType.Thermostat,
+    characteristic: HKCharacteristicKey.CurrentTemperature,
+  };
+
+  normalizeComputedRefSource(ref);
+
+  assert.equal(ref.source, 'homebridge');
 });
 
 test('DummyCharacteristicValueSource reads stored values and emits event-driven updates', () => {

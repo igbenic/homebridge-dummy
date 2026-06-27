@@ -18,6 +18,38 @@ export function toFiniteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function isComputedRefConfigured(ref: Partial<ComputedCharacteristicRef> | undefined): boolean {
+  return ref !== undefined
+    && (
+      ref.accessoryId !== undefined
+      || ref.serviceType !== undefined
+      || ref.serviceSubtype !== undefined
+      || ref.characteristic !== undefined
+    );
+}
+
+export function isComputedTemperatureConfigured(config: Partial<ComputedTemperatureConfig> | undefined): boolean {
+  if (config === undefined) {
+    return false;
+  }
+
+  return config.type !== undefined
+    || isComputedRefConfigured(config.minuend)
+    || isComputedRefConfigured(config.subtrahend)
+    || config.precision !== undefined
+    || config.offset !== undefined
+    || config.clampMinimum !== undefined
+    || config.clampMaximum !== undefined;
+}
+
+export function normalizeComputedRefSource(ref: Partial<ComputedCharacteristicRef>): void {
+  if (ref.source !== undefined) {
+    return;
+  }
+
+  ref.source = ref.serviceType !== undefined || ref.serviceSubtype !== undefined ? 'homebridge' : 'dummy';
+}
+
 export class DummyCharacteristicValueSource implements ComputedValueSource {
   public constructor(
     private readonly ref: ComputedCharacteristicRef,
@@ -52,6 +84,15 @@ export function computedRefKey(ref: ComputedCharacteristicRef): string {
   ].join(':');
 }
 
+function roundComputedTemperature(value: number, precision: number): number {
+  if (precision > 0 && precision < 1) {
+    return Math.round(value / precision) * precision;
+  }
+
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+}
+
 export function computeTemperatureDelta(config: ComputedTemperatureConfig, sourceValues: Map<string, number>): number | undefined {
   const minuend = sourceValues.get(computedRefKey(config.minuend));
   const subtrahend = sourceValues.get(computedRefKey(config.subtrahend));
@@ -61,10 +102,9 @@ export function computeTemperatureDelta(config: ComputedTemperatureConfig, sourc
   }
 
   const precision = config.precision ?? 1;
-  const factor = 10 ** precision;
 
   let value = minuend - subtrahend + (config.offset ?? 0);
-  value = Math.round(value * factor) / factor;
+  value = roundComputedTemperature(value, precision);
 
   if (config.clampMinimum !== undefined) {
     value = Math.max(value, config.clampMinimum);

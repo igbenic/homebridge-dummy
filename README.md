@@ -36,7 +36,7 @@ Visit the [Wiki](https://github.com/mpatfield/homebridge-dummy/wiki) to learn mo
 
 Temperature sensors can optionally expose a computed delta between two numeric dummy accessory characteristics. This is useful when automations should react to the difference between an actual room temperature and a user-selected target temperature instead of fixed absolute temperatures.
 
-The computed value is event-driven. It updates when either source characteristic changes and does not poll source accessories on a timer. The current implementation supports dummy-owned `CurrentTemperature` and `TargetTemperature` sources. Direct cross-plugin Homebridge sources are rejected until an event-driven adapter is available.
+The computed value is event-driven. It updates when either source characteristic changes and does not poll source accessories on a timer. The current implementation supports dummy-owned `CurrentTemperature` and `TargetTemperature` sources plus supported Homebridge source adapters, including `TclHome` thermostat temperature updates from `homebridge-tcl-split-ac`. Use `precision` as decimal places for integer values, or as a step size for values between `0` and `1`; for example `0.5` rounds to half-degree increments.
 
 ```json
 {
@@ -46,8 +46,9 @@ The computed value is event-driven. It updates when either source characteristic
   "computed": {
     "type": "DELTA",
     "minuend": {
-      "source": "dummy",
-      "accessoryId": "ac_room_temp_input",
+      "source": "homebridge",
+      "accessoryId": "e921608f-2394-464f-81c8-f36c965e4c47",
+      "serviceType": "Thermostat",
       "characteristic": "CurrentTemperature"
     },
     "subtrahend": {
@@ -55,7 +56,7 @@ The computed value is event-driven. It updates when either source characteristic
       "accessoryId": "wanted_temp",
       "characteristic": "TargetTemperature"
     },
-    "precision": 1
+    "precision": 0.5
   },
   "resetOnRestart": false
 }

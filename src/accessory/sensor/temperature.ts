@@ -9,6 +9,8 @@ import {
   computeTemperatureDelta,
   computedRefKey,
   DummyCharacteristicValueSource,
+  isComputedTemperatureConfigured,
+  normalizeComputedRefSource,
   SUPPORTED_COMPUTED_CHARACTERISTICS,
   toFiniteNumber,
 } from '../../model/computed-temperature.js';
@@ -44,7 +46,7 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
     const persistedTemperature = this.isStateful ? this.getProperty(HKCharacteristicKey.CurrentTemperature) : undefined;
     this.temperature = persistedTemperature ?? 0;
 
-    if (this.config.computed === undefined) {
+    if (!isComputedTemperatureConfigured(this.config.computed)) {
       if (persistedTemperature !== undefined) {
         this.publishCharacteristic(HKCharacteristicKey.CurrentTemperature, this.temperature);
       }
@@ -246,6 +248,8 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
       this.log.error(strings.computed.missingField, this.displayName, this.configPath(`${path}.accessoryId`));
       return false;
     }
+
+    normalizeComputedRefSource(ref);
 
     if (ref.source !== 'dummy' && ref.source !== 'homebridge') {
       this.log.error(strings.computed.unsupportedSource, this.displayName, this.configPath(`${path}.source`), '\'dummy\', \'homebridge\'');

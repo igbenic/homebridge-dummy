@@ -11,11 +11,12 @@ import { setLanguage, strings } from '../i18n/i18n.js';
 
 import { CharacteristicEventBus } from '../model/characteristic-events.js';
 import { ConditionManager } from '../model/conditions.js';
+import { isComputedTemperatureConfigured } from '../model/computed-temperature.js';
 import { Protocol } from '../model/enums.js';
 import { HomebridgeCharacteristicSourceManager } from '../model/homebridge-characteristic-source.js';
 import { HomeKitType } from '../model/homekit.js';
 import { History } from '../model/history.js';
-import { DummyConfig, DummyPlatformConfig, GroupConfig, HomeKitAccessory } from '../model/types.js';
+import { DummyConfig, DummyPlatformConfig, GroupConfig, HomeKitAccessory, TemperatureSensorConfig } from '../model/types.js';
 import { WebhookManager } from '../model/webhook.js';
 
 import { Log } from '../tools/log.js';
@@ -246,7 +247,8 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
   }
 
   private hasUnsupportedComputedConfig(accessoryConfig: DummyConfig): boolean {
-    if (!('computed' in accessoryConfig) || accessoryConfig.computed === undefined) {
+    const computed = (accessoryConfig as Partial<TemperatureSensorConfig>).computed;
+    if (!isComputedTemperatureConfigured(computed)) {
       return false;
     }
 

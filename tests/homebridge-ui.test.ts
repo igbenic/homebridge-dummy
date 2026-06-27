@@ -123,3 +123,12 @@ test('computed temperature source schema exposes dummy and Homebridge sources', 
     ['dummy', 'homebridge'],
   );
 });
+
+test('computed temperature schema allows half-degree precision', () => {
+  const schema = JSON.parse(readFileSync('config.schema.json', 'utf8'));
+
+  assert.equal(
+    schema.schema.definitions.computedTemperature.properties.precision.type,
+    'number',
+  );
+});
