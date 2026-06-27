@@ -61,8 +61,11 @@ const en = {
     nonNumericInput: '%s computed temperature source %s produced non-numeric value %s', // accessory name, source accessory id, value
     nonTemperatureSensor: '%s has computed config but type %s is not TemperatureSensor', // accessory name, type
     selfReference: '%s computed temperature config cannot reference its own CurrentTemperature in %s', // accessory name, field path
+    unreadableHomebridgeCache: 'Unable to read Homebridge cached accessory file %s: %s', // file name, error
     unsupportedCharacteristic: '%s computed temperature source %s uses unsupported characteristic %s. '
       + 'Must be one of: %s', // accessory name, field path, characteristic, list
+    unsupportedHomebridgeSource: 'Homebridge computed temperature source %s %s.%s is not supported. '
+      + 'Only event-driven TclHome thermostat temperature sources are currently supported.', // accessory id, service type, characteristic
     unsupportedSource: '%s computed temperature source %s must use source %s. '
       + 'Direct Homebridge sources need an event-driven adapter first.', // accessory name, field path, source
   },

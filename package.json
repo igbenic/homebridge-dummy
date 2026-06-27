@@ -81,6 +81,7 @@
     "node": "^20 || ^22 || ^24"
   },
   "dependencies": {
+    "@homebridge/plugin-ui-utils": "^2.2.4",
     "arpping": "^4.0.0",
     "axios": "^1.13.2",
     "cron": "^4.3.2",

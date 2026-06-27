@@ -42,11 +42,59 @@ test('computed source accessory picker includes dummy temperature sensors and th
       {
         id: 'room-temp',
         name: 'AC Room Temp Input',
+        source: 'dummy',
         type: HomeKitType.TemperatureSensor,
       },
       {
         id: 'wanted-temp',
         name: 'Wanted temperature',
+        source: 'dummy',
+        type: HomeKitType.Thermostat,
+      },
+    ],
+  );
+});
+
+test('computed source accessory picker includes cached Homebridge temperature services', () => {
+  assert.deepEqual(
+    computedSourceAccessories(configs, [
+      {
+        displayName: 'Split AC',
+        UUID: 'e921608f-2394-464f-81c8-f36c965e4c47',
+        plugin: 'homebridge-tcl-split-ac',
+        platform: 'TclHome',
+        services: [
+          {
+            constructorName: 'Thermostat',
+            subtype: null,
+            characteristics: [
+              { constructorName: 'CurrentTemperature' },
+              { constructorName: 'TargetTemperature' },
+            ],
+          },
+        ],
+      },
+    ]),
+    [
+      {
+        id: 'room-temp',
+        name: 'AC Room Temp Input',
+        source: 'dummy',
+        type: HomeKitType.TemperatureSensor,
+      },
+      {
+        id: 'wanted-temp',
+        name: 'Wanted temperature',
+        source: 'dummy',
+        type: HomeKitType.Thermostat,
+      },
+      {
+        id: 'e921608f-2394-464f-81c8-f36c965e4c47',
+        name: 'Split AC Thermostat (Homebridge)',
+        platform: 'TclHome',
+        plugin: 'homebridge-tcl-split-ac',
+        serviceType: 'Thermostat',
+        source: 'homebridge',
         type: HomeKitType.Thermostat,
       },
     ],
@@ -60,17 +108,18 @@ test('condition operand accessory picker keeps temperature-only accessories out'
       {
         id: 'switch',
         name: 'Switch',
+        source: 'dummy',
         type: HomeKitType.Switch,
       },
     ],
   );
 });
 
-test('computed temperature source schema only exposes supported dummy sources', () => {
+test('computed temperature source schema exposes dummy and Homebridge sources', () => {
   const schema = JSON.parse(readFileSync('config.schema.json', 'utf8'));
 
   assert.deepEqual(
     schema.schema.definitions.computedCharacteristicRef.properties.source.enum,
-    ['dummy'],
+    ['dummy', 'homebridge'],
   );
 });

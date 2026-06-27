@@ -11,6 +11,7 @@ import { strings } from '../i18n/i18n.js';
 import { ConditionManager } from '../model/conditions.js';
 import { AccessoryState, Protocol, TimeUnits } from '../model/enums.js';
 import { CharacteristicEventBus, CharacteristicEventValue } from '../model/characteristic-events.js';
+import { HomebridgeCharacteristicSourceManager } from '../model/homebridge-characteristic-source.js';
 import { CharacteristicKey, HKCharacteristicKey, HomeKitType } from '../model/homekit.js';
 import { History, HistoryEntry, HistoryType } from '../model/history.js';
 import { MATTER_SERIAL_MAX_LEN, MatterClusterKey, MatterType, MatterValue, MatterValueKey } from '../model/matter.js';
@@ -38,6 +39,7 @@ export type DummyAccessoryDependency<C extends DummyConfig> = {
   config: C,
   conditionManager: ConditionManager,
   characteristicEventBus: CharacteristicEventBus,
+  homebridgeCharacteristicSourceManager?: HomebridgeCharacteristicSourceManager,
   log: Log,
   history?: History
   isGrouped: boolean,
@@ -310,6 +312,10 @@ export abstract class DummyAccessory<C extends DummyConfig> implements MatterAcc
 
   protected get characteristicEventBus(): CharacteristicEventBus {
     return this.dependency.characteristicEventBus;
+  }
+
+  protected get homebridgeCharacteristicSourceManager(): HomebridgeCharacteristicSourceManager | undefined {
+    return this.dependency.homebridgeCharacteristicSourceManager;
   }
 
   protected get isStateful(): boolean {

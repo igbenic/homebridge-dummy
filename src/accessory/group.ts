@@ -4,6 +4,7 @@ import { createDummyAccessory } from './helpers.js';
 import { ConditionManager } from '../model/conditions.js';
 import { CharacteristicEventBus } from '../model/characteristic-events.js';
 import { Protocol } from '../model/enums.js';
+import { HomebridgeCharacteristicSourceManager } from '../model/homebridge-characteristic-source.js';
 import { History } from '../model/history.js';
 import { DummyConfig, GroupConfig } from '../model/types.js';
 import { WebhookManager } from '../model/webhook.js';
@@ -17,6 +18,7 @@ export type GroupAccessoryDependency = {
     getMatter: GetMatter,
     conditionManager: ConditionManager,
     characteristicEventBus: CharacteristicEventBus,
+    homebridgeCharacteristicSourceManager?: HomebridgeCharacteristicSourceManager,
     log: Log,
     history: History
 }

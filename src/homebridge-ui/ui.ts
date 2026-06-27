@@ -9,7 +9,7 @@ import {
   computedSourceAccessories,
   conditionOperandAccessories,
 } from './accessory-select.js';
-import type { AccessorySelectOption } from './accessory-select.js';
+import type { AccessorySelectOption, CachedHomebridgeAccessory } from './accessory-select.js';
 
 declare const homebridge: IHomebridgePluginUi;
 
@@ -159,6 +159,30 @@ function findPreviousNamedElement(element: Element): Element | undefined {
   return undefined;
 }
 
+function findPreviousByName(element: Element, name: string): Element | undefined {
+
+  const parentDocument = getParentDocument();
+  if (!parentDocument) {
+    return undefined;
+  }
+
+  const walker = parentDocument.createTreeWalker(parentDocument.body, NodeFilter.SHOW_ELEMENT);
+
+  let previous: Element | undefined;
+  while (walker.nextNode()) {
+    if (walker.currentNode === element) {
+      return previous;
+    }
+
+    const node = walker.currentNode as Element;
+    if (node.getAttribute('name') === name) {
+      previous = node;
+    }
+  }
+
+  return undefined;
+}
+
 function findNextNamedElement(element: Element): Element | undefined {
 
   const parentDocument = getParentDocument();
@@ -208,6 +232,47 @@ let accessoryOptionsByKind: Record<AccessorySelectKind, AccessorySelectOption[]>
   computed: [],
 };
 
+let cachedHomebridgeAccessories: CachedHomebridgeAccessory[] = [];
+let cachedHomebridgeAccessoriesLoaded = false;
+
+function setFieldValue(element: Element | undefined, value: string | undefined) {
+  if (!element) {
+    return;
+  }
+
+  const input = element as HTMLInputElement | HTMLSelectElement;
+  const nextValue = value ?? '';
+  if (input.value === nextValue) {
+    return;
+  }
+
+  input.value = nextValue;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function applyComputedSourceOption(idInput: HTMLInputElement, option: AccessorySelectOption | undefined) {
+  setFieldValue(findPreviousByName(idInput, 'source'), option?.source);
+  setFieldValue(findNextByName(idInput, 'serviceType'), option?.serviceType);
+  setFieldValue(findNextByName(idInput, 'serviceSubtype'), option?.serviceSubtype);
+}
+
+async function loadCachedHomebridgeAccessories() {
+  if (cachedHomebridgeAccessoriesLoaded) {
+    return;
+  }
+
+  try {
+    const accessories = await homebridge.request('/homebridge-accessories') as unknown;
+    cachedHomebridgeAccessories = Array.isArray(accessories) ? accessories as CachedHomebridgeAccessory[] : [];
+  } catch (err) {
+    console.warn('Unable to load Homebridge accessory picker options.', err);
+    cachedHomebridgeAccessories = [];
+  } finally {
+    cachedHomebridgeAccessoriesLoaded = true;
+  }
+}
+
 async function updateAccessoryDropdowns(configs?: DummyPlatformConfig[]) {
 
   const parentDocument = getParentDocument();
@@ -224,9 +289,11 @@ async function updateAccessoryDropdowns(configs?: DummyPlatformConfig[]) {
     configs = await homebridge.getPluginConfig() as DummyPlatformConfig[];
   }
 
+  await loadCachedHomebridgeAccessories();
+
   accessoryOptionsByKind = {
     condition: conditionOperandAccessories(configs),
-    computed: computedSourceAccessories(configs),
+    computed: computedSourceAccessories(configs, cachedHomebridgeAccessories),
   };
 
   accessoryIdInputs.forEach(element => {
@@ -256,9 +323,15 @@ async function updateAccessoryDropdowns(configs?: DummyPlatformConfig[]) {
         const options = accessoryOptionsByKind[accessorySelect.dataset.accessorySelectKind as AccessorySelectKind] ?? [];
         if (accessorySelect.selectedIndex === -1) {
           idInput.value = '';
+          if (accessorySelect.dataset.accessorySelectKind === 'computed') {
+            applyComputedSourceOption(idInput, undefined);
+          }
         } else {
-          const accessoryId = options[accessorySelect.selectedIndex].id;
-          idInput.value = accessoryId;
+          const option = options[accessorySelect.selectedIndex];
+          idInput.value = option.id;
+          if (accessorySelect.dataset.accessorySelectKind === 'computed') {
+            applyComputedSourceOption(idInput, option);
+          }
         }
         idInput.dispatchEvent(new Event('input', { bubbles: true }));
       });
@@ -285,6 +358,7 @@ async function updateAccessoryDropdowns(configs?: DummyPlatformConfig[]) {
       const accessory = options[accessoryIndex];
 
       if (kind === 'computed') {
+        applyComputedSourceOption(idInput, accessory);
         return;
       }
 

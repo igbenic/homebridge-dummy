@@ -5,6 +5,7 @@ import { DummyAccessory, DummyAccessoryDependency } from '../base.js';
 import { strings } from '../../i18n/i18n.js';
 
 import {
+  ComputedValueSource,
   computeTemperatureDelta,
   computedRefKey,
   DummyCharacteristicValueSource,
@@ -142,7 +143,11 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
     this.activeComputedConfig = computedConfig;
 
     for (const ref of [computedConfig.minuend, computedConfig.subtrahend]) {
-      const source = new DummyCharacteristicValueSource(ref, this.characteristicEventBus, Storage.get);
+      const source = this.createComputedSource(ref);
+      if (source === undefined) {
+        continue;
+      }
+
       const initial = source.read();
       const key = computedRefKey(ref);
 
@@ -164,6 +169,14 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
     }
 
     this.recomputeComputedTemperature();
+  }
+
+  private createComputedSource(ref: ComputedCharacteristicRef): ComputedValueSource | undefined {
+    if (ref.source === 'dummy') {
+      return new DummyCharacteristicValueSource(ref, this.characteristicEventBus, Storage.get);
+    }
+
+    return this.homebridgeCharacteristicSourceManager?.createSource(ref);
   }
 
   private recomputeComputedTemperature() {
@@ -234,8 +247,8 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
       return false;
     }
 
-    if (ref.source !== 'dummy') {
-      this.log.error(strings.computed.unsupportedSource, this.displayName, this.configPath(`${path}.source`), '\'dummy\'');
+    if (ref.source !== 'dummy' && ref.source !== 'homebridge') {
+      this.log.error(strings.computed.unsupportedSource, this.displayName, this.configPath(`${path}.source`), '\'dummy\', \'homebridge\'');
       return false;
     }
 
@@ -250,7 +263,7 @@ export class TemperatureSensorAccessory extends DummyAccessory<TemperatureSensor
       return false;
     }
 
-    if (ref.accessoryId === this.identifier && ref.characteristic === HKCharacteristicKey.CurrentTemperature) {
+    if (ref.source === 'dummy' && ref.accessoryId === this.identifier && ref.characteristic === HKCharacteristicKey.CurrentTemperature) {
       this.log.error(strings.computed.selfReference, this.displayName, this.configPath(path));
       return false;
     }

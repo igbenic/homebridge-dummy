@@ -12,6 +12,7 @@ import { setLanguage, strings } from '../i18n/i18n.js';
 import { CharacteristicEventBus } from '../model/characteristic-events.js';
 import { ConditionManager } from '../model/conditions.js';
 import { Protocol } from '../model/enums.js';
+import { HomebridgeCharacteristicSourceManager } from '../model/homebridge-characteristic-source.js';
 import { HomeKitType } from '../model/homekit.js';
 import { History } from '../model/history.js';
 import { DummyConfig, DummyPlatformConfig, GroupConfig, HomeKitAccessory } from '../model/types.js';
@@ -32,6 +33,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
 
   private readonly webhookManager: WebhookManager;
   private readonly conditionManager: ConditionManager;
+  private readonly homebridgeCharacteristicSourceManager: HomebridgeCharacteristicSourceManager;
   private readonly characteristicEventBus = new CharacteristicEventBus();
 
   constructor(
@@ -45,6 +47,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
     this.log = new Log(logger, config.verbose === true);
     this.webhookManager = new WebhookManager(this.log, this.api.user.configPath(), { port: config.webhookPort, ...config.webhookConfig });
     this.conditionManager = new ConditionManager(this.log, api.user.storagePath());
+    this.homebridgeCharacteristicSourceManager = new HomebridgeCharacteristicSourceManager(this.log, api.user.storagePath());
 
     this.log.ifVerbose(
       'v%s | System %s | Node %s | HB v%s | HAPNodeJS v%s | Matter %s',
@@ -83,6 +86,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
     });
     this.webhookManager.teardown();
     this.conditionManager.teardown();
+    this.homebridgeCharacteristicSourceManager.teardown();
   }
 
   private async setup(): Promise<void> {
@@ -133,6 +137,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
           config: accessoryConfig,
           conditionManager: this.conditionManager,
           characteristicEventBus: this.characteristicEventBus,
+          homebridgeCharacteristicSourceManager: this.homebridgeCharacteristicSourceManager,
           log: this.log,
           history: History.instance(this.api, this.log),
           isGrouped: false,
@@ -173,6 +178,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
           config: accessoryConfig,
           conditionManager: this.conditionManager,
           characteristicEventBus: this.characteristicEventBus,
+          homebridgeCharacteristicSourceManager: this.homebridgeCharacteristicSourceManager,
           log: this.log,
           history: undefined,
           isGrouped: false,
@@ -213,6 +219,7 @@ export class HomebridgeDummyPlatform implements DynamicPlatformPlugin {
         getMatter: () => undefined,
         conditionManager: this.conditionManager,
         characteristicEventBus: this.characteristicEventBus,
+        homebridgeCharacteristicSourceManager: this.homebridgeCharacteristicSourceManager,
         log: this.log,
         history: History.instance(this.api, this.log),
       };
