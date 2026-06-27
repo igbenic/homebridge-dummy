@@ -72,7 +72,7 @@ export type HumiditySensorConfig = DummyConfig & {
 }
 
 export type ComputedCharacteristicRef = Assertable & {
-  source: 'dummy' | 'homebridge',
+  source: 'dummy',
   accessoryId: string,
   serviceType?: string,
   serviceSubtype?: string,

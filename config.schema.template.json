@@ -37,8 +37,9 @@
           "source": {
             "type": "string",
             "title": "${config.title.source}",
-            "enum": ["dummy", "homebridge"],
-            "enumNames": ["${config.enumNames.dummySource}", "${config.enumNames.homebridgeSource}"]
+            "default": "dummy",
+            "enum": ["dummy"],
+            "enumNames": ["${config.enumNames.dummySource}"]
           },
           "accessoryId": {
             "type": "string",

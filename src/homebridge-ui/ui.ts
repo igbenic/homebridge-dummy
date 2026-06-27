@@ -4,7 +4,12 @@ import { PLUGIN_ALIAS } from '../homebridge/settings.js';
 
 import { FadeOutType, OnState, ScheduleType, SensorBehavior } from '../model/enums.js';
 import { HomeKitType } from '../model/homekit.js';
-import { DummyConfig, DummyPlatformConfig, LightbulbConfig, OnOffConfig } from '../model/types.js';
+import { DummyPlatformConfig, LightbulbConfig, OnOffConfig } from '../model/types.js';
+import {
+  computedSourceAccessories,
+  conditionOperandAccessories,
+} from './accessory-select.js';
+import type { AccessorySelectOption } from './accessory-select.js';
 
 declare const homebridge: IHomebridgePluginUi;
 
@@ -130,8 +135,80 @@ function findNextByName(element: Element, name: string): Element | undefined {
   return undefined;
 }
 
-let accessories: DummyConfig[] = [];
-async function updateConditionDropdowns(configs?: DummyPlatformConfig[]) {
+function findPreviousNamedElement(element: Element): Element | undefined {
+
+  const parentDocument = getParentDocument();
+  if (!parentDocument) {
+    return undefined;
+  }
+
+  const walker = parentDocument.createTreeWalker(parentDocument.body, NodeFilter.SHOW_ELEMENT);
+
+  let previous: Element | undefined;
+  while (walker.nextNode()) {
+    if (walker.currentNode === element) {
+      return previous;
+    }
+
+    const node = walker.currentNode as Element;
+    if (node.getAttribute('name')) {
+      previous = node;
+    }
+  }
+
+  return undefined;
+}
+
+function findNextNamedElement(element: Element): Element | undefined {
+
+  const parentDocument = getParentDocument();
+  if (!parentDocument) {
+    return undefined;
+  }
+
+  const walker = parentDocument.createTreeWalker(parentDocument.body, NodeFilter.SHOW_ELEMENT);
+
+  let found = false;
+  while (walker.nextNode()) {
+    if (walker.currentNode === element) {
+      found = true;
+      continue;
+    }
+
+    if (found) {
+      const node = walker.currentNode as Element;
+      if (node.getAttribute('name')) {
+        return node;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+type AccessorySelectKind = 'condition' | 'computed';
+
+function accessorySelectKind(element: Element): AccessorySelectKind | undefined {
+  const previousName = findPreviousNamedElement(element)?.getAttribute('name');
+  const nextName = findNextNamedElement(element)?.getAttribute('name');
+
+  if (previousName === 'source' && nextName === 'characteristic') {
+    return 'computed';
+  }
+
+  if (nextName === 'accessoryState') {
+    return 'condition';
+  }
+
+  return undefined;
+}
+
+let accessoryOptionsByKind: Record<AccessorySelectKind, AccessorySelectOption[]> = {
+  condition: [],
+  computed: [],
+};
+
+async function updateAccessoryDropdowns(configs?: DummyPlatformConfig[]) {
 
   const parentDocument = getParentDocument();
   if (!parentDocument) {
@@ -147,36 +224,18 @@ async function updateConditionDropdowns(configs?: DummyPlatformConfig[]) {
     configs = await homebridge.getPluginConfig() as DummyPlatformConfig[];
   }
 
-  const newAccessories: DummyConfig[] = [];
-
-  for (const config of configs) {
-    const populated = (config.accessories ?? []).filter( (accessory) => accessory.id && accessory.name &&
-    ![
-      HomeKitType.HumiditySensor,
-      HomeKitType.StatelessProgrammableSwitch,
-      HomeKitType.TemperatureSensor,
-      HomeKitType.Thermostat,
-    ].includes(accessory.type));
-    newAccessories.push(...populated);
-  }
-
-  let accessoriesChanged = false;
-  if (accessories.length !== newAccessories.length) {
-    accessories = newAccessories;
-    accessoriesChanged = true;
-  } else {
-    accessories.forEach( (accessory, index) => {
-      const compare = newAccessories[index];
-      if (accessory.name !== compare.name || accessory.type !== compare.type || accessory.id !== compare.id) {
-        accessories = newAccessories;
-        accessoriesChanged = true;
-      }
-    });
-  }
+  accessoryOptionsByKind = {
+    condition: conditionOperandAccessories(configs),
+    computed: computedSourceAccessories(configs),
+  };
 
   accessoryIdInputs.forEach(element => {
 
     const idInput = element as HTMLInputElement;
+    const kind = accessorySelectKind(idInput);
+    if (!kind) {
+      return;
+    }
 
     let accessorySelect = idInput.parentElement?.querySelector('select.form-select[data-accessory-name-select="true"]') as HTMLSelectElement;
 
@@ -194,10 +253,11 @@ async function updateConditionDropdowns(configs?: DummyPlatformConfig[]) {
       idInput.hidden = true;
 
       accessorySelect.addEventListener('change', () => {
+        const options = accessoryOptionsByKind[accessorySelect.dataset.accessorySelectKind as AccessorySelectKind] ?? [];
         if (accessorySelect.selectedIndex === -1) {
           idInput.value = '';
         } else {
-          const accessoryId = accessories[accessorySelect.selectedIndex].id;
+          const accessoryId = options[accessorySelect.selectedIndex].id;
           idInput.value = accessoryId;
         }
         idInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -206,24 +266,27 @@ async function updateConditionDropdowns(configs?: DummyPlatformConfig[]) {
       idInput.parentElement?.appendChild(accessorySelect);
     }
 
-    if (accessoriesChanged || accessorySelect.length === 0) {
+    accessorySelect.dataset.accessorySelectKind = kind;
+    accessorySelect.length = 0;
 
-      accessorySelect.length = 0;
+    const options = accessoryOptionsByKind[kind];
+    options.forEach(accessory => {
+      const option = document.createElement('option');
+      option.text = accessory.name;
+      accessorySelect.add(option);
+    });
 
-      accessories.forEach(accessory => {
-        const option = document.createElement('option');
-        option.text = accessory.name;
-        accessorySelect.add(option);
-      });
-    }
-
-    const accessoryIndex = idInput.value.length ? accessories.findIndex( (accessory) => accessory.id === idInput.value) : -1;
+    const accessoryIndex = idInput.value.length ? options.findIndex( (accessory) => accessory.id === idInput.value) : -1;
     if (accessoryIndex === -1) {
       accessorySelect.selectedIndex = -1;
     } else {
       accessorySelect.selectedIndex = accessoryIndex ;
 
-      const accessory = accessories[accessoryIndex];
+      const accessory = options[accessoryIndex];
+
+      if (kind === 'computed') {
+        return;
+      }
 
       const stateSelect = findNextByName(accessorySelect, 'accessoryState') as HTMLSelectElement;
       if (!stateSelect) {
@@ -369,7 +432,7 @@ async function showSettings() {
 
     const observer = new MutationObserver(() => {
       if (updateAccessoryNames()) {
-        updateConditionDropdowns();
+        updateAccessoryDropdowns();
         observer.disconnect();
       }
     });
@@ -385,7 +448,7 @@ async function showSettings() {
 
     const configs = (evt as MessageEvent).data as DummyPlatformConfig[];
     await updateConfigsWithUUIDs(configs);
-    await updateConditionDropdowns(configs);
+    await updateAccessoryDropdowns(configs);
   });
 
   homebridge.showSchemaForm();
