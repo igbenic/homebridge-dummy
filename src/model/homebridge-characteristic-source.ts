@@ -135,7 +135,7 @@ class HomebridgeCharacteristicValueSource implements ComputedValueSource {
 export class HomebridgeCharacteristicSourceManager {
 
   private tailFile?: TailFile;
-  private readonly subscriptions = new Map<string, HomebridgeSourceSubscription>();
+  private readonly subscriptions = new Map<string, HomebridgeSourceSubscription[]>();
 
   public constructor(
     private readonly log: Log,
@@ -160,11 +160,25 @@ export class HomebridgeCharacteristicSourceManager {
 
   public subscribe(ref: ComputedCharacteristicRef, onValue: (value: number) => void): () => void {
     const key = computedRefKey(ref);
-    this.subscriptions.set(key, { ref, onValue });
+    const subscription = { ref, onValue };
+    const subscriptions = this.subscriptions.get(key) ?? [];
+    subscriptions.push(subscription);
+    this.subscriptions.set(key, subscriptions);
     this.startTclLogWatcher();
 
     return () => {
-      this.subscriptions.delete(key);
+      const subscriptions = this.subscriptions.get(key);
+      if (subscriptions !== undefined) {
+        const index = subscriptions.indexOf(subscription);
+        if (index !== -1) {
+          subscriptions.splice(index, 1);
+        }
+
+        if (subscriptions.length === 0) {
+          this.subscriptions.delete(key);
+        }
+      }
+
       if (this.subscriptions.size === 0) {
         void this.tailFile?.stop();
         this.tailFile = undefined;
@@ -239,9 +253,11 @@ export class HomebridgeCharacteristicSourceManager {
   }
 
   private publishTclTemperature(characteristic: HKCharacteristicKey, value: number) {
-    for (const subscription of this.subscriptions.values()) {
-      if (subscription.ref.characteristic === characteristic) {
-        subscription.onValue(value);
+    for (const subscriptions of this.subscriptions.values()) {
+      for (const subscription of subscriptions) {
+        if (subscription.ref.characteristic === characteristic) {
+          subscription.onValue(value);
+        }
       }
     }
   }

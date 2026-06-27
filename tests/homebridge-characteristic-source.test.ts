@@ -1,8 +1,12 @@
 import { strict as assert } from 'node:assert';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
   findCachedHomebridgeCharacteristic,
+  HomebridgeCharacteristicSourceManager,
   isSupportedHomebridgeCharacteristicSource,
   parseTclTemperatureLine,
 } from '../src/model/homebridge-characteristic-source.js';
@@ -78,4 +82,49 @@ test('TCL thermostat temperature source is supported for event-driven Homebridge
     ),
     true,
   );
+});
+
+test('TCL temperature updates notify every subscriber to the same Homebridge source', async () => {
+  const storagePath = mkdtempSync(join(tmpdir(), 'homebridge-dummy-test-'));
+  mkdirSync(join(storagePath, 'accessories'));
+  writeFileSync(join(storagePath, 'accessories', 'cachedAccessories.test'), JSON.stringify([splitAcAccessory]));
+  writeFileSync(join(storagePath, 'homebridge.log'), '');
+
+  const manager = new HomebridgeCharacteristicSourceManager({
+    warning() {},
+    error() {},
+  } as never, storagePath);
+
+  const ref = {
+    source: 'homebridge' as const,
+    accessoryId: 'e921608f-2394-464f-81c8-f36c965e4c47',
+    serviceType: 'Thermostat',
+    characteristic: HKCharacteristicKey.CurrentTemperature,
+  };
+
+  const firstSource = manager.createSource(ref);
+  const secondSource = manager.createSource(ref);
+  assert.ok(firstSource);
+  assert.ok(secondSource);
+
+  const firstValues: number[] = [];
+  const secondValues: number[] = [];
+
+  const testManager = manager as unknown as {
+    handleLogLine(line: string): void,
+    tailFile?: { stop(): Promise<void> },
+  };
+
+  try {
+    firstSource.subscribe(value => firstValues.push(value));
+    secondSource.subscribe(value => secondValues.push(value));
+
+    testManager.handleLogLine('[TCL Home] 📈 power=1 mode=1 wind=6 room=25°C target=25°C');
+  } finally {
+    await testManager.tailFile?.stop();
+    manager.teardown();
+  }
+
+  assert.deepEqual(firstValues, [25]);
+  assert.deepEqual(secondValues, [25]);
 });
